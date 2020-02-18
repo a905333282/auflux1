@@ -5,10 +5,8 @@ from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from application.extensions import db, bcrypt
 from flask import current_app
 from flask_login import UserMixin
-
 from configs.enum import USER_GENDER, USER_ROLE, NOTI_TYPE
 from configs import signals
-
 
 
 __all__ = ['UserAccount', 'UserInformation', 'User']
@@ -27,8 +25,8 @@ class UserAccount(db.EmbeddedDocument):
                                   required=True)
 
     # login related
-    email = db.EmailField(required=True, unique=True)
-    mobile_number = db.StringField()
+    mobile_number = db.StringField(required=True, unique=True)
+    email = db.EmailField()
     is_email_verified = db.BooleanField(default=False)
     _password = db.StringField(max_length=255)
     activation_key = db.StringField(max_length=255)
@@ -53,7 +51,7 @@ class UserAccount(db.EmbeddedDocument):
 
     def to_json(self):
         return dict(created_at=str(self.created_at),
-                    email=self.email)
+                    mobile_number=self.mobile_number)
 
 
 class User(db.Document, UserMixin):
@@ -71,29 +69,21 @@ class User(db.Document, UserMixin):
     account = db.EmbeddedDocumentField('UserAccount')
     information = db.EmbeddedDocumentField('UserInformation')
 
-    avatar_url = db.URLField(default='http://assets.maybi.cn/logo/panda.jpg')
+    selling_items = db.ListField(db.StringField())
+    sold_items = db.ListField(db.StringField())
+    owned_item = db.ListField(db.StringField())
+    bought_item = db.ListField(db.StringField())
 
-    # level
-    # 0: normal user
-    # 1: normal member; 2: advance member
-    # 3: premium member; 4: VIP member
-    level = db.IntField(default=0)
     roles = db.ListField(db.StringField())
-
-    # whether subscribed our wechat account
-    subscribed_mp = db.BooleanField(default=False)
 
     # favor related (item_ids)
     num_favors = db.IntField(default=0, min_value=0)
-    favor_items = db.ListField(db.IntField())
+    favor_items = db.ListField(db.StringField())
 
     addresses = db.ListField(db.ReferenceField('Address'))
     default_address = db.ReferenceField('Address')
 
-    # favor related (post_ids)
-    num_post_likes = db.IntField(default=0, min_value=0)
-    like_posts = db.ListField(db.IntField())
-
+    verified = db.BooleanField(default=False)
     is_deleted = db.BooleanField(default=False)
     deleted_date = db.DateTimeField()
 
@@ -113,22 +103,26 @@ class User(db.Document, UserMixin):
     def is_admin(self):
         return USER_ROLE.ADMIN in self.roles
 
+    @classmethod
+    def is_verified(self):
+        return self.verified
+
+    def verify(self):
+        self.verified = True
+        self.save()
+        return True
 
     def to_json(self):
         data = dict(name=self.name,
-                    avatar_url=self.avatar_url,
-                    avatar_thumb=self.avatar_thumb,
-                    num_followers=self.num_followers,
-                    num_followings=self.num_followings,
                     created_at=str(self.account.created_at),
                     id=str(self.id)
                 )
         return data
 
     @classmethod
-    def authenticate(cls, email=None, password=None):
-        if email:
-            user = cls.active(account__email=email.lower()).first()
+    def authenticate(cls, mobile_number=None, password=None):
+        if mobile_number:
+            user = cls.active(account__mobile_number=mobile_number).first()
         else:
             user = None
         if user:
@@ -153,12 +147,12 @@ class User(db.Document, UserMixin):
 
 
     @classmethod
-    def create(cls, email, password, name, mobile_number=None):
+    def create(cls, mobile_number, password, name, email=None):
 
 
         # account
-        account = UserAccount(email=email.lower(),
-                              mobile_number=mobile_number,
+        account = UserAccount(mobile_number=mobile_number,
+                              email=email,
                               is_email_verified=True)
         account.password = password
 
@@ -171,4 +165,5 @@ class User(db.Document, UserMixin):
 
         signals.user_signup.send('system', user=user)
         return user
+
 

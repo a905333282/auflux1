@@ -1,8 +1,12 @@
-
 import os
 
 _basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 TEMPLATE_DIR = os.path.join(_basedir, 'application', 'templates')
+
+ES_INDEX = "items"
+ES_TYPE = "search_engine"
+TIMEOUT_ACTIVE = 500
+
 
 class BaseConfig(object):
     MONGODB_SETTINGS = {
@@ -28,6 +32,13 @@ class BaseConfig(object):
     INVENTORY_DB_CONFIG = {
         'alias': 'inventory_db',
         'name': 'inventory',
+        'host': 'localhost',
+        'port': 27017,
+    }
+
+    CART_DB_CONFIG = {
+        'alias': 'cart_db',
+        'name': 'cart',
         'host': 'localhost',
         'port': 27017,
     }

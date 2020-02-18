@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-from .user import *
-from .inventory import *
+
+from .cart import *
 
 def all():
     result = []
-    models = [user, inventory]
+    models = [cart]
     for m in models:
         result += m.__all__
     return result
